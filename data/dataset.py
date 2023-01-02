@@ -1,22 +1,8 @@
 import torch
 import torchvision
-import torch
-from data_preprocess import get_img_segment_pairs, get_img_detection_pairs
 
-
-def convert_corners_to_xywh(left, top, right, bottom):
-    x = (left + right) / 2.0
-    y = (top + bottom) / 2.0
-    w = right - left
-    h = bottom - top
-
-    return x,y,w,h
-
-def parse_kitti_object(obj):
-    cls_type = obj[0]
-    left, top, right, bottom = list(map(float,obj[4:8]))
-    x, y, w, h = convert_corners_to_xywh(left, top, right, bottom)
-    return (cls_type, x, y, w, h)
+from .data_preprocess import get_img_segment_pairs, get_img_detection_pairs
+from .utils import label_parser
 
 class SegmentDataset(torch.utils.data.Dataset):
     def __init__(self) -> None:
@@ -68,9 +54,7 @@ class DetectionDataset(torch.utils.data.Dataset):
                 break
             else:
                 obj = obj.split()
-                obj = parse_kitti_object(obj)
+                obj = label_parser.parse_kitti_object(obj)
                 obj_list.append(obj)
 
         return obj_list
-
-data = DetectionDataset()

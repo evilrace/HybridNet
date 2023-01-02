@@ -52,6 +52,5 @@ def get_img_detection_pairs(detection_file_path, img_data_path):
         if t in img_file_dict:
             img_detection_pair_list.append((img_file_dict[t], detection_file_dict[t]))
 
-
     return img_detection_pair_list
 
