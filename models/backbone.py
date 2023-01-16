@@ -16,7 +16,7 @@ class downscale_layer(torch.nn.Module):
     def __init__(self, in_channels, out_channels) -> None:
         super().__init__()
         self.conv = torch.nn.Conv2d(in_channels * 2, out_channels, 3, padding='same')
-        self.pooling = torch.nn.MaxPool2d(2,2)
+        self.pooling = torch.nn.MaxPool2d(2,2, ceil_mode=True)
         self.bn = torch.nn.BatchNorm2d(out_channels)
         self.relu = torch.nn.ReLU()
 
@@ -33,18 +33,16 @@ class FPN(torch.nn.Module):
     def __init__(self, channels = 512) -> None:
         super().__init__()
         self.channels = channels
-        self.resnet = torchvision.models.resnet50(weights = torchvision.models.ResNet50_Weights.IMAGENET1K_V2)
-        resnet_layer_names = ["layer1.2.conv3", "layer2.3.conv3", "layer3.5.conv3", "layer4.2.conv3"]
+        self.resnet = torchvision.models.resnet18(weights = torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
+        resnet_layer_names = ["layer1.1.conv2", "layer2.1.conv2", "layer3.1.conv2", "layer4.1.conv2"]
         self.return_nodes = { layer_name : f'layer{idx}' for idx, layer_name in enumerate(resnet_layer_names)
         }
-        resnet_out_channels = [self.resnet.layer1[2].conv3.out_channels, self.resnet.layer2[3].conv3.out_channels, self.resnet.layer3[5].conv3.out_channels, self.resnet.layer4[2].conv3.out_channels]
+        resnet_out_channels = [self.resnet.layer1[1].conv2.out_channels, self.resnet.layer2[1].conv2.out_channels, self.resnet.layer3[1].conv2.out_channels, self.resnet.layer4[1].conv2.out_channels]
         self.resnet = create_feature_extractor(self.resnet, self.return_nodes)
 
         self.encoder = torch.nn.ModuleList([conv_block(in_channels, self.channels) for in_channels in resnet_out_channels])
         self.downscale_layers = torch.nn.ModuleList([downscale_layer(self.channels, self.channels) for _ in range(len(self.encoder)-1)])
         
-
-
     def forward(self, x):
         with torch.no_grad():
             feature = self.resnet(x)
@@ -52,13 +50,3 @@ class FPN(torch.nn.Module):
         feautre_pyramid = [downscale_layer(self.encoded_features[idx], self.encoded_features[idx+1])  for idx, downscale_layer in enumerate(self.downscale_layers)]
         feautre_pyramid = [self.encoded_features[0]] + feautre_pyramid
         return feautre_pyramid
-
-
-fpn = FPN()
-fpn = fpn.to('cuda')
-sample = torch.rand((1,3,1024,1024))
-sample = sample.to('cuda')
-output = fpn(sample)
-
-for out in output:
-    print(out.size())

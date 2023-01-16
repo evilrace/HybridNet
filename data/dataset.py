@@ -16,7 +16,6 @@ class SegmentDataset(torch.utils.data.Dataset):
             img_file_path, segment_file_path = self.img_segment_pair_list[idx]
             img = torchvision.io.read_image(img_file_path)
             segment = torchvision.io.read_image(segment_file_path)
-
             self.cached[idx] = (img, segment)
 
         return self.cached[idx]
@@ -57,4 +56,4 @@ class DetectionDataset(torch.utils.data.Dataset):
                 obj = label_parser.parse_kitti_object(obj)
                 obj_list.append(obj)
 
-        return obj_list
+        return torch.tensor(obj_list)
