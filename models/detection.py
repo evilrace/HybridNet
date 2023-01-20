@@ -41,6 +41,5 @@ class SSD(torch.nn.Module):
         for header_layer, conv_block in zip(self.head_layers2, self.conv_blocks):
             x = conv_block(x)
             output = output + [header_layer(x)]
-
         return output
         

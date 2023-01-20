@@ -15,7 +15,7 @@ class det_loss(torch.nn.Module, ):
         y = y.to('cuda')
         pred_convert = list()
         for p in pred:
-            p = p.permute(0,-1,-2,1)
+            p = p.permute(0,3,2,1)
             p = p.reshape(p.size()[0], -1, self.detection_class_num + 1 + 4)
             pred_convert.append(p)
             
@@ -30,15 +30,24 @@ class det_loss(torch.nn.Module, ):
         cls_loss = self.cls_loss(pred_cls, torch.where(y_cls<0, 0, y_cls))
         box_loss = self.box_loss(pred_box, y_box)
 
-        cls_ignore_mask = torch.where(y_cls >= 0, 1, 0)
-        box_ignore_mask = torch.where(y_cls >= 1, 1, 0)
-        cls_loss = cls_loss * cls_ignore_mask
-        box_loss = box_loss * box_ignore_mask.unsqueeze(-1)
+        cls_positive_mask = torch.where(y_cls > 0, 1, 0)
+        cls_negative_mask = torch.where(y_cls == 0, 1, 0)
+        box_mask = torch.where(y_cls >= 1, 1, 0)
 
-        cls_loss = cls_loss.sum() / cls_ignore_mask.sum()
-        box_loss = box_loss.sum() / box_ignore_mask.sum()
+        cls_positive_loss = cls_loss * cls_positive_mask
+        cls_negative_loss = cls_loss * cls_negative_mask
+        positive_len = cls_positive_mask.sum()
+
+        negative_len = torch.min(torch.tensor([positive_len*3, cls_negative_mask.sum()]))
+        cls_negative_hard = torch.sort(cls_negative_loss, descending=True)[0][:, :negative_len]
+        box_loss = box_loss * box_mask.unsqueeze(-1)
+
+        cls_loss = cls_positive_loss.sum() + cls_negative_hard.sum()
+        cls_loss = cls_loss / (positive_len + negative_len + 1e-8)
+        box_loss = box_loss.sum() / (box_mask.sum() + 1e-8)
+
         loss = cls_loss + box_loss
-        return loss
+        return loss, cls_loss, box_loss
     
     def cls_loss(self, preds, y):
         loss = self._cls_entropy_loss(preds, y)

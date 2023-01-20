@@ -5,7 +5,20 @@ import numpy as np
 from .boxes import *
 
 
+def decode_detection_output(anchor_boxes, preds):
+    box_variance = torch.tensor([0.1, 0.1, 0.2, 0.2])
+    box_target = preds * box_variance
+    box_target = torch.concat(
+        [
+            box_target[:,:2] * anchor_boxes[:, 2:] + anchor_boxes[:,:2],
+            torch.pow(torch.e, box_target[:,2:]) * anchor_boxes[:, 2:],
+        ],
+        axis = -1,
+    )  
+
     
+    return box_target
+
 def _compute_box_target(anchor_boxes, matched_gt_boxes):
     box_variance = torch.tensor([0.1, 0.1, 0.2, 0.2])
     box_target = torch.concat(
@@ -18,7 +31,6 @@ def _compute_box_target(anchor_boxes, matched_gt_boxes):
 
     box_target = box_target / box_variance
     return box_target
-
 
 def get_detection_labels(labels, anchors, true_iou_th = 0.5, false_iou_th = 0.4):
     cls_target = labels[:,0]
